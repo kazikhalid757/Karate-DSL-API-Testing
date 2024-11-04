@@ -47,4 +47,52 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run tests
+        run: mvn -s .m2/settings.xml --batch-mode test
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports
+            target/karate-reports
+            target/allure-results
+
+  generate_allure_report:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Maven
+        uses: actions/setup-java@v2
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Restore test artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: test-reports
+          path: target/
+
+      - name: Install Allure
+        run: |
+          wget -qO- https://github.com/allure-framework/allure2/releases/download/2.20.1/allure-2.20.1.tgz | tar -zx -C /opt/
+          echo "/opt/allure-2.20.1/bin" >> $GITHUB_PATH
+
+      - name: Generate Allure report
+        run: allure generate target/allure-results --clean -o target/allure-report
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v2
+        with:
+          name: allure-report
+          path: target/allure-report

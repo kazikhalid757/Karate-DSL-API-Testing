@@ -1,0 +1,50 @@
+
+image: maven:latest
+
+stages:
+  - build
+  - test
+  - report
+
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    paths:
+      - target/surefire-reports
+      - target/karate-reports
+      - target/allure-results
+    when: always
+  only:
+    - main
+
+generate_allure_report:
+  stage: report
+  script:
+    - wget -qO- https://github.com/allure-framework/allure2/releases/download/2.20.1/allure-2.20.1.tgz | tar -zx -C /opt/
+    - export PATH=$PATH:/opt/allure-2.20.1/bin
+    - allure generate target/allure-results --clean -o target/allure-report
+  artifacts:
+    name: "allure-report"
+    paths:
+      - target/allure-report
+      - target/surefire-reports
+      - target/karate-reports
+      - target/allure-results
+    when: always
+  only:
+    - main

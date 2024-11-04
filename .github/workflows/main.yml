@@ -1,50 +1,50 @@
+name: API Test CI
 
-image: maven:latest
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-stages:
-  - build
-  - test
-  - report
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-variables:
-  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+      - name: Set up Maven
+        uses: actions/setup-java@v2
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-cache:
-  paths:
-    - .m2/repository/
-    - target/
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-build:
-  stage: build
-  script:
-    - mvn $MAVEN_CLI_OPTS compile
+      - name: Compile code
+        run: mvn -s .m2/settings.xml --batch-mode compile
 
-test:
-  stage: test
-  script:
-    - mvn $MAVEN_CLI_OPTS test
-  artifacts:
-    paths:
-      - target/surefire-reports
-      - target/karate-reports
-      - target/allure-results
-    when: always
-  only:
-    - main
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-generate_allure_report:
-  stage: report
-  script:
-    - wget -qO- https://github.com/allure-framework/allure2/releases/download/2.20.1/allure-2.20.1.tgz | tar -zx -C /opt/
-    - export PATH=$PATH:/opt/allure-2.20.1/bin
-    - allure generate target/allure-results --clean -o target/allure-report
-  artifacts:
-    name: "allure-report"
-    paths:
-      - target/allure-report
-      - target/surefire-reports
-      - target/karate-reports
-      - target/allure-results
-    when: always
-  only:
-    - main
+      - name: Set up Maven
+        uses: actions/setup-java@v2
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Restore Maven cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{
